@@ -5,7 +5,11 @@ public partial class App : Application
     public App()
     {
         InitializeComponent();
-        MainPage = new ContentPage
+    }
+
+    protected override Window CreateWindow(IActivationState? activationState)
+    {
+        return new Window(new ContentPage
         {
             Content = new Label
             {
@@ -13,6 +17,6 @@ public partial class App : Application
                 HorizontalOptions = LayoutOptions.Center,
                 VerticalOptions = LayoutOptions.Center
             }
-        };
+        });
     }
 }
