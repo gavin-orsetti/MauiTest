@@ -1,0 +1,37 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Install Android workload
+        run: dotnet workload install android maui-android
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Restore
+        run: dotnet restore MauiTest/MauiTest.csproj -p:TargetFramework=net10.0-android
+
+      - name: Build
+        run: dotnet build MauiTest/MauiTest.csproj -f net10.0-android -c Debug --no-restore
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: MauiTest-debug.apk
+          path: '**/*.apk'
+          retention-days: 7
+          if-no-files-found: error
