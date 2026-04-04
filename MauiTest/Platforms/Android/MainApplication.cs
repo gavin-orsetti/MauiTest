@@ -1,7 +1,10 @@
 using Android.App;
 using Android.Content;
+using Android.OS;
 using Android.Runtime;
+using Android.Widget;
 using System;
+using System.Threading;
 
 namespace MauiTest;
 
@@ -9,17 +12,7 @@ namespace MauiTest;
 public class MainApplication : MauiApplication
 {
     public MainApplication(IntPtr handle, JniHandleOwnership ownership)
-        : base(handle, ownership)
-    {
-        AppDomain.CurrentDomain.UnhandledException += (sender, args) =>
-            SaveCrash(args.ExceptionObject as Exception);
-
-        AndroidEnvironment.UnhandledExceptionRaiser += (sender, args) =>
-        {
-            SaveCrash(args.Exception);
-            args.Handled = false;
-        };
-    }
+        : base(handle, ownership) { }
 
     protected override MauiApp CreateMauiApp()
     {
@@ -29,28 +22,52 @@ public class MainApplication : MauiApplication
         }
         catch (Exception ex)
         {
-            SaveCrash(ex);
+            // Build full message including all inner exceptions
+            var msg = BuildMessage(ex);
+
+            // Save to SharedPreferences synchronously
+            try
+            {
+                var prefs = Android.App.Application.Context
+                    .GetSharedPreferences("crash", FileCreationMode.Private)!
+                    .Edit()!;
+                prefs.PutString("crash_info", msg);
+                prefs.Commit(); // synchronous — not Apply()
+            }
+            catch { }
+
+            // Show a blocking native Toast on the main thread
+            try
+            {
+                var handler = new Handler(Looper.MainLooper!);
+                handler.Post(() =>
+                {
+                    Toast.MakeText(Android.App.Application.Context, 
+                        "CRASH: " + ex.GetType().Name + ": " + ex.Message, 
+                        ToastLength.Long)?.Show();
+                });
+                Thread.Sleep(4000); // give toast time to show
+            }
+            catch { }
+
             throw;
         }
     }
 
-    private static void SaveCrash(Exception? ex)
+    private static string BuildMessage(Exception? ex)
     {
-        try
+        var sb = new System.Text.StringBuilder();
+        var current = ex;
+        var depth = 0;
+        while (current != null && depth < 5)
         {
-            var ctx = Android.App.Application.Context;
-            var prefs = ctx.GetSharedPreferences("crash", FileCreationMode.Private);
-            var edit = prefs!.Edit();
-            edit!.PutString("crash_info",
-                $"Type: {ex?.GetType()?.FullName}\n" +
-                $"Message: {ex?.Message}\n\n" +
-                $"Inner: {ex?.InnerException?.GetType()?.FullName}\n" +
-                $"Inner Message: {ex?.InnerException?.Message}\n\n" +
-                $"InnerInner: {ex?.InnerException?.InnerException?.Message}\n\n" +
-                $"Stack:\n{ex?.StackTrace}\n\n" +
-                $"Inner Stack:\n{ex?.InnerException?.StackTrace}");
-            edit.Apply();
+            sb.AppendLine($"[Level {depth}] {current.GetType().FullName}");
+            sb.AppendLine($"Message: {current.Message}");
+            sb.AppendLine($"Stack: {current.StackTrace}");
+            sb.AppendLine();
+            current = current.InnerException;
+            depth++;
         }
-        catch { }
+        return sb.ToString();
     }
 }
