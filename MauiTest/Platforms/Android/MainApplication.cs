@@ -38,7 +38,8 @@ public class MainApplication : MauiApplication
     {
         try
         {
-            var prefs = Application.Context.GetSharedPreferences("crash", FileCreationMode.Private);
+            var ctx = Android.App.Application.Context;
+            var prefs = ctx.GetSharedPreferences("crash", FileCreationMode.Private);
             var edit = prefs!.Edit();
             edit!.PutString("crash_info",
                 $"Type: {ex?.GetType()?.FullName}\n" +
