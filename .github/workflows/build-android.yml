@@ -11,29 +11,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup .NET 10
+      - name: Setup .NET 9
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: '9.0.x'
 
-      - name: Install Android workload
-        run: dotnet workload install android maui-android
+      - name: Install MAUI Android workload
+        run: dotnet workload install maui-android
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
       - name: Restore
-        run: dotnet restore MauiTest/MauiTest.csproj -p:TargetFramework=net10.0-android
+        run: dotnet restore MauiTest/MauiTest.csproj -p:TargetFramework=net9.0-android
 
-      - name: Publish Android APK (arm64-v8a)
+      - name: Publish Android APK (arm64)
         run: >
           dotnet publish MauiTest/MauiTest.csproj
-          -f net10.0-android
+          -f net9.0-android
           -c Debug
           -r android-arm64
           --no-restore
           -p:AndroidPackageFormat=apk
-          -p:AndroidSdkDirectory=$ANDROID_HOME
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
