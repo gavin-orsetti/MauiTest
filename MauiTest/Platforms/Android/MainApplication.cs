@@ -1,7 +1,7 @@
 using Android.App;
+using Android.Content;
 using Android.Runtime;
 using System;
-using System.IO;
 
 namespace MauiTest;
 
@@ -11,16 +11,12 @@ public class MainApplication : MauiApplication
     public MainApplication(IntPtr handle, JniHandleOwnership ownership)
         : base(handle, ownership)
     {
-        // Earliest possible hook — before any Activity or MAUI code runs
         AppDomain.CurrentDomain.UnhandledException += (sender, args) =>
-        {
-            var ex = args.ExceptionObject as Exception;
-            WriteCrashFile(ex);
-        };
+            SaveCrash(args.ExceptionObject as Exception);
 
         AndroidEnvironment.UnhandledExceptionRaiser += (sender, args) =>
         {
-            WriteCrashFile(args.Exception);
+            SaveCrash(args.Exception);
             args.Handled = false;
         };
     }
@@ -33,21 +29,26 @@ public class MainApplication : MauiApplication
         }
         catch (Exception ex)
         {
-            WriteCrashFile(ex);
+            SaveCrash(ex);
             throw;
         }
     }
 
-    private static void WriteCrashFile(Exception? ex)
+    private static void SaveCrash(Exception? ex)
     {
         try
         {
-            // Write to app-private cache — no permissions needed
-            var path = Path.Combine(
-                global::Android.App.Application.Context.CacheDir!.AbsolutePath,
-                "crash.txt");
-            var text = $"Type: {ex?.GetType()?.FullName}\nMessage: {ex?.Message}\nInner: {ex?.InnerException?.GetType()?.FullName}: {ex?.InnerException?.Message}\nInnerInner: {ex?.InnerException?.InnerException?.Message}\n\nStack:\n{ex?.StackTrace}\n\nInner Stack:\n{ex?.InnerException?.StackTrace}";
-            File.WriteAllText(path, text);
+            var prefs = Application.Context.GetSharedPreferences("crash", FileCreationMode.Private);
+            var edit = prefs!.Edit();
+            edit!.PutString("crash_info",
+                $"Type: {ex?.GetType()?.FullName}\n" +
+                $"Message: {ex?.Message}\n\n" +
+                $"Inner: {ex?.InnerException?.GetType()?.FullName}\n" +
+                $"Inner Message: {ex?.InnerException?.Message}\n\n" +
+                $"InnerInner: {ex?.InnerException?.InnerException?.Message}\n\n" +
+                $"Stack:\n{ex?.StackTrace}\n\n" +
+                $"Inner Stack:\n{ex?.InnerException?.StackTrace}");
+            edit.Apply();
         }
         catch { }
     }

@@ -1,4 +1,4 @@
-using System.IO;
+using Android.Content;
 
 namespace MauiTest;
 
@@ -11,28 +11,36 @@ public partial class App : Application
 
     protected override Window CreateWindow(IActivationState? activationState)
     {
-        // Check if a crash file exists from a previous run
-        var crashPath = Path.Combine(FileSystem.CacheDirectory, "crash.txt");
-        string pageText = "Hello from MAUI!\n\nNo previous crash detected.";
+        // Read crash from previous run
+        var prefs = global::Android.App.Application.Context
+            .GetSharedPreferences("crash", FileCreationMode.Private);
+        var crashInfo = prefs?.GetString("crash_info", null);
 
-        if (File.Exists(crashPath))
+        string displayText;
+        if (!string.IsNullOrEmpty(crashInfo))
         {
-            pageText = "CRASH FROM PREVIOUS RUN:\n\n" + File.ReadAllText(crashPath);
-            File.Delete(crashPath); // clear after reading
+            displayText = "CRASH FROM PREVIOUS RUN:\n\n" + crashInfo;
+            // Clear it
+            prefs?.Edit()?.Remove("crash_info")?.Apply();
         }
-
-        var label = new Label
+        else
         {
-            Text = pageText,
-            HorizontalOptions = LayoutOptions.Fill,
-            VerticalOptions = LayoutOptions.Fill,
-            LineBreakMode = LineBreakMode.WordWrap,
-            Margin = new Thickness(16)
-        };
+            displayText = "App launched successfully!\n\nNo crash detected.";
+        }
 
         return new Window(new ContentPage
         {
-            Content = new ScrollView { Content = label }
+            Content = new ScrollView
+            {
+                Content = new Label
+                {
+                    Text = displayText,
+                    HorizontalOptions = LayoutOptions.Fill,
+                    VerticalOptions = LayoutOptions.Fill,
+                    LineBreakMode = LineBreakMode.WordWrap,
+                    Margin = new Thickness(16)
+                }
+            }
         });
     }
 }
